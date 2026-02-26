@@ -25,7 +25,20 @@ const Navbar = () => {
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
-    fetch('/api/categories').then(res => res.json()).then(setCategories);
+    
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch('/api/categories');
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch categories in navbar:', err);
+      }
+    };
+    
+    fetchCategories();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -166,16 +179,20 @@ const Navbar = () => {
                       className="absolute right-0 mt-2 w-56 bg-card-dark border border-white/10 rounded-2xl shadow-2xl py-2 z-50 overflow-hidden"
                     >
                       <div className="px-4 py-3 border-b border-white/5 mb-2">
-                        <p className="text-xs text-stone-500">Signed in as</p>
-                        <p className="text-sm font-bold truncate">{user.email}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-stone-500">Signed in as</p>
+                        <p className="text-sm font-bold truncate">{user.name}</p>
                       </div>
                       <Link to="/my-account/orders" className="flex items-center space-x-3 px-4 py-2 hover:bg-white/5 transition-colors text-sm">
                         <Package className="w-4 h-4 text-stone-500" />
                         <span>My Orders</span>
                       </Link>
-                      <Link to="/wishlist" className="flex items-center space-x-3 px-4 py-2 hover:bg-white/5 transition-colors text-sm">
+                      <Link to="/my-account/wishlist" className="flex items-center space-x-3 px-4 py-2 hover:bg-white/5 transition-colors text-sm">
                         <Heart className="w-4 h-4 text-stone-500" />
                         <span>My Wishlist</span>
+                      </Link>
+                      <Link to="/my-account/cart" className="flex items-center space-x-3 px-4 py-2 hover:bg-white/5 transition-colors text-sm">
+                        <ShoppingCart className="w-4 h-4 text-stone-500" />
+                        <span>My Cart</span>
                       </Link>
                       <Link to="/my-account/addresses" className="flex items-center space-x-3 px-4 py-2 hover:bg-white/5 transition-colors text-sm">
                         <MapPin className="w-4 h-4 text-stone-500" />

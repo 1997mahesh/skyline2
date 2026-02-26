@@ -2,6 +2,8 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
+import multer from "multer";
 import dotenv from "dotenv";
 import Database from "better-sqlite3";
 import jwt from "jsonwebtoken";
@@ -12,6 +14,23 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const uploadDir = path.join(__dirname, "public", "uploads", "products");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({ storage });
 
 const db = new Database("skyline.db");
 const JWT_SECRET = process.env.JWT_SECRET || "skyline-secret-key";
@@ -59,12 +78,13 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
+    address_id INTEGER,
     total_amount REAL NOT NULL,
     status TEXT DEFAULT 'pending',
-    payment_method TEXT,
-    shipping_address TEXT,
+    payment_method TEXT DEFAULT 'COD',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (address_id) REFERENCES addresses(id)
   );
 
   CREATE TABLE IF NOT EXISTS order_items (
@@ -76,15 +96,88 @@ db.exec(`
     FOREIGN KEY (order_id) REFERENCES orders(id),
     FOREIGN KEY (product_id) REFERENCES products(id)
   );
+
+  CREATE TABLE IF NOT EXISTS addresses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    type TEXT DEFAULT 'shipping', -- 'shipping', 'billing'
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    address_line1 TEXT NOT NULL,
+    address_line2 TEXT,
+    landmark TEXT,
+    city TEXT NOT NULL,
+    state TEXT NOT NULL,
+    pincode TEXT NOT NULL,
+    is_default INTEGER DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS store_settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT UNIQUE NOT NULL,
+    value TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS wishlist (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    product_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    UNIQUE(user_id, product_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS cart (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    product_id INTEGER,
+    quantity INTEGER DEFAULT 1,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    UNIQUE(user_id, product_id)
+  );
 `);
+
+  // Migration: Add address_id to orders if it doesn't exist
+  const ordersTableInfo = db.prepare("PRAGMA table_info(orders)").all() as any[];
+  const hasAddressId = ordersTableInfo.some(col => col.name === 'address_id');
+  if (!hasAddressId) {
+    try {
+      db.prepare("ALTER TABLE orders ADD COLUMN address_id INTEGER REFERENCES addresses(id)").run();
+      console.log("Added address_id column to orders table");
+    } catch (e) {
+      console.error("Failed to add address_id column:", e);
+    }
+  }
 
 // Seed Data if empty
 const userCount = db.prepare("SELECT COUNT(*) as count FROM users").get() as { count: number };
 if (userCount.count === 0) {
-  const hashedPassword = bcrypt.hashSync("admin123", 10);
+  const adminPassword = bcrypt.hashSync("admin123", 10);
   db.prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)").run(
-    "Admin", "admin@skylinelights.com", hashedPassword, "admin"
+    "Admin", "admin@skylinelights.com", adminPassword, "admin"
   );
+
+  const userPassword = bcrypt.hashSync("123456", 10);
+  db.prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)").run(
+    "Demo User", "user@skylinelights.com", userPassword, "customer"
+  );
+}
+
+const settingsCount = db.prepare("SELECT COUNT(*) as count FROM store_settings").get() as { count: number };
+if (settingsCount.count === 0) {
+  const settings = [
+    { key: 'store_name', value: 'Skyline Lights' },
+    { key: 'logo', value: '/logo.png' },
+    { key: 'contact_email', value: 'contact@skylinelights.com' },
+    { key: 'contact_phone', value: '+91 9226645159' },
+    { key: 'gst_number', value: '27AAACG1234A1Z5' },
+    { key: 'address', value: '123, Light Street, Mumbai, Maharashtra' }
+  ];
+  const insertSetting = db.prepare("INSERT INTO store_settings (key, value) VALUES (?, ?)");
+  settings.forEach(s => insertSetting.run(s.key, s.value));
 }
 
 const categoryCount = db.prepare("SELECT COUNT(*) as count FROM categories").get() as { count: number };
@@ -118,6 +211,27 @@ if (productCount.count === 0) {
   ];
   const insertProd = db.prepare("INSERT INTO products (category_id, name, slug, price, stock, application, is_featured, is_new, images) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
   products.forEach(p => insertProd.run(p.category_id, p.name, p.slug, p.price, p.stock, p.application, p.is_featured, p.is_new, p.images));
+}
+
+const orderCount = db.prepare("SELECT COUNT(*) as count FROM orders").get() as { count: number };
+if (orderCount.count === 0) {
+  const demoUser = db.prepare("SELECT id FROM users WHERE email = 'user@skylinelights.com'").get() as { id: number };
+  if (demoUser) {
+    const orderResult = db.prepare(`
+      INSERT INTO orders (user_id, total_amount, status, payment_method, shipping_address)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(demoUser.id, 1048, 'delivered', 'COD', 'Demo User\n123, Light Street\nMumbai, Maharashtra - 400001');
+    
+    const orderId = orderResult.lastInsertRowid;
+    db.prepare(`
+      INSERT INTO order_items (order_id, product_id, quantity, price)
+      VALUES (?, ?, ?, ?)
+    `).run(orderId, 1, 2, 149);
+    db.prepare(`
+      INSERT INTO order_items (order_id, product_id, quantity, price)
+      VALUES (?, ?, ?, ?)
+    `).run(orderId, 3, 1, 449);
+  }
 }
 
 async function startServer() {
@@ -185,25 +299,23 @@ async function startServer() {
   });
 
   app.post("/api/auth/register", (req, res) => {
-    const { name, email, password, role, phone, gst_number } = req.body;
+    const { name, email, password, phone } = req.body;
+    
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
     const hashedPassword = bcrypt.hashSync(password, 10);
     try {
-      const result = db.prepare("INSERT INTO users (name, email, password, role, phone, gst_number) VALUES (?, ?, ?, ?, ?, ?)").run(
-        name, email, hashedPassword, role || 'customer', phone, gst_number
+      db.prepare("INSERT INTO users (name, email, password, role, phone) VALUES (?, ?, ?, ?, ?)").run(
+        name, email, hashedPassword, 'customer', phone
       );
       
-      const user = db.prepare("SELECT * FROM users WHERE id = ?").get(result.lastInsertRowid) as any;
-      const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-      
-      res.cookie("token", token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'none',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
-
-      res.status(201).json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+      res.status(201).json({ message: "Registration successful" });
     } catch (e: any) {
+      if (e.message.includes("UNIQUE constraint failed")) {
+        return res.status(400).json({ error: "Email already registered" });
+      }
       res.status(400).json({ error: e.message });
     }
   });
@@ -251,7 +363,307 @@ async function startServer() {
     });
   });
 
+  // Products CRUD
+  app.post("/api/products", authenticateToken, authorizeRole(['admin']), (req, res) => {
+    const { category_id, name, slug, description, price, stock, images, application, is_featured, is_new } = req.body;
+    try {
+      const result = db.prepare(`
+        INSERT INTO products (category_id, name, slug, description, price, stock, images, application, is_featured, is_new)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(category_id, name, slug, description, price, stock, JSON.stringify(images), application, is_featured ? 1 : 0, is_new ? 1 : 0);
+      res.status(201).json({ id: result.lastInsertRowid });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/products/:id", authenticateToken, authorizeRole(['admin']), (req, res) => {
+    const { id } = req.params;
+    const { category_id, name, slug, description, price, stock, images, application, is_featured, is_new } = req.body;
+    try {
+      db.prepare(`
+        UPDATE products SET category_id = ?, name = ?, slug = ?, description = ?, price = ?, stock = ?, images = ?, application = ?, is_featured = ?, is_new = ?
+        WHERE id = ?
+      `).run(category_id, name, slug, description, price, stock, JSON.stringify(images), application, is_featured ? 1 : 0, is_new ? 1 : 0, id);
+      res.json({ message: "Product updated" });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.delete("/api/products/:id", authenticateToken, authorizeRole(['admin']), (req, res) => {
+    const { id } = req.params;
+    db.prepare("DELETE FROM products WHERE id = ?").run(id);
+    res.json({ message: "Product deleted" });
+  });
+
+  // Orders
+  app.get("/api/orders", authenticateToken, (req: any, res) => {
+    let orders;
+    if (req.user.role === 'admin') {
+      orders = db.prepare(`
+        SELECT o.*, u.name as user_name, u.email as user_email 
+        FROM orders o 
+        JOIN users u ON o.user_id = u.id
+        ORDER BY o.created_at DESC
+      `).all();
+    } else {
+      orders = db.prepare("SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC").all(req.user.id);
+    }
+    res.json(orders);
+  });
+
+  app.post("/api/orders", authenticateToken, (req: any, res) => {
+    const { addressId, paymentMethod } = req.body;
+    const userId = req.user.id;
+
+    console.log(`Placing order for user ${userId}, address ${addressId}`);
+
+    if (!addressId) {
+      return res.status(400).json({ error: "Delivery address is required" });
+    }
+
+    // Validate address belongs to user
+    const address = db.prepare("SELECT id FROM addresses WHERE id = ? AND user_id = ?").get(addressId, userId);
+    if (!address) {
+      return res.status(400).json({ error: "Invalid delivery address" });
+    }
+
+    // Fetch cart items with product details
+    const cartItems = db.prepare(`
+      SELECT c.product_id, c.quantity, p.price, p.stock, p.name
+      FROM cart c
+      JOIN products p ON c.product_id = p.id
+      WHERE c.user_id = ?
+    `).all(userId) as any[];
+
+    if (cartItems.length === 0) {
+      return res.status(400).json({ error: "Your cart is empty" });
+    }
+
+    // Validate stock
+    for (const item of cartItems) {
+      if (item.stock < item.quantity) {
+        return res.status(400).json({ error: `Insufficient stock for ${item.name}` });
+      }
+    }
+
+    const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    try {
+      const insertOrder = db.prepare(`
+        INSERT INTO orders (user_id, address_id, total_amount, payment_method, status)
+        VALUES (?, ?, ?, ?, 'pending')
+      `);
+      
+      const insertOrderItem = db.prepare(`
+        INSERT INTO order_items (order_id, product_id, quantity, price)
+        VALUES (?, ?, ?, ?)
+      `);
+
+      const updateStock = db.prepare(`
+        UPDATE products SET stock = stock - ? WHERE id = ?
+      `);
+
+      const clearCart = db.prepare(`
+        DELETE FROM cart WHERE user_id = ?
+      `);
+
+      const transaction = db.transaction(() => {
+        const result = insertOrder.run(userId, addressId, totalAmount, paymentMethod || 'COD');
+        const orderId = result.lastInsertRowid;
+
+        for (const item of cartItems) {
+          insertOrderItem.run(orderId, item.product_id, item.quantity, item.price);
+          updateStock.run(item.quantity, item.product_id);
+        }
+
+        clearCart.run(userId);
+        return orderId;
+      });
+
+      const orderId = transaction();
+      console.log(`Order placed successfully: ${orderId}`);
+      res.status(201).json({ orderId });
+    } catch (e: any) {
+      console.error("Order placement failed:", e);
+      res.status(500).json({ error: "Order placement failed: " + e.message });
+    }
+  });
+
+  app.get("/api/orders/:id", authenticateToken, (req: any, res) => {
+    const { id } = req.params;
+    const order = db.prepare(`
+      SELECT o.*, a.name as address_name, a.phone as address_phone, a.address_line1, a.address_line2, a.city, a.state, a.pincode, a.landmark
+      FROM orders o
+      LEFT JOIN addresses a ON o.address_id = a.id
+      WHERE o.id = ?
+    `).get(id) as any;
+    
+    if (!order) return res.status(404).json({ error: "Order not found" });
+    
+    if (req.user.role !== 'admin' && order.user_id !== req.user.id) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const items = db.prepare(`
+      SELECT oi.*, p.name as product_name, p.slug as product_slug, p.images as product_images
+      FROM order_items oi
+      JOIN products p ON oi.product_id = p.id
+      WHERE oi.order_id = ?
+    `).all(id);
+
+    res.json({ ...order, items });
+  });
+
+  app.patch("/api/orders/:id/status", authenticateToken, authorizeRole(['admin']), (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    db.prepare("UPDATE orders SET status = ? WHERE id = ?").run(status, id);
+    res.json({ message: "Order status updated" });
+  });
+
+  // Users
+  app.get("/api/users", authenticateToken, authorizeRole(['admin']), (req, res) => {
+    const users = db.prepare("SELECT id, name, email, role, phone, gst_number, created_at FROM users").all();
+    res.json(users);
+  });
+
+  app.put("/api/users/:id", authenticateToken, authorizeRole(['admin']), (req, res) => {
+    const { id } = req.params;
+    const { name, email, phone, role, gst_number } = req.body;
+    try {
+      db.prepare("UPDATE users SET name = ?, email = ?, phone = ?, role = ?, gst_number = ? WHERE id = ?").run(
+        name, email, phone, role, gst_number, id
+      );
+      res.json({ message: "User updated" });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.delete("/api/users/:id", authenticateToken, authorizeRole(['admin']), (req: any, res) => {
+    const { id } = req.params;
+    // Don't allow deleting self
+    if (req.user.id === parseInt(id)) {
+      return res.status(400).json({ error: "Cannot delete your own account" });
+    }
+    db.prepare("DELETE FROM users WHERE id = ?").run(id);
+    res.json({ message: "User deleted" });
+  });
+
+  // Addresses
+  app.get("/api/addresses", authenticateToken, (req: any, res) => {
+    const addresses = db.prepare("SELECT * FROM addresses WHERE user_id = ?").all(req.user.id);
+    res.json(addresses);
+  });
+
+  app.post("/api/addresses", authenticateToken, (req: any, res) => {
+    const { name, phone, address_line1, address_line2, city, state, pincode, landmark, type, is_default } = req.body;
+    if (is_default) {
+      db.prepare("UPDATE addresses SET is_default = 0 WHERE user_id = ?").run(req.user.id);
+    }
+    const result = db.prepare(`
+      INSERT INTO addresses (user_id, name, phone, address_line1, address_line2, city, state, pincode, landmark, type, is_default)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(req.user.id, name, phone, address_line1, address_line2, city, state, pincode, landmark, type || 'shipping', is_default ? 1 : 0);
+    res.status(201).json({ id: result.lastInsertRowid });
+  });
+
+  // Product Image Upload
+  app.post("/api/admin/products/upload", authenticateToken, authorizeRole(['admin']), upload.array("images"), (req: any, res) => {
+    const filePaths = req.files.map((file: any) => `/uploads/products/${file.filename}`);
+    res.json({ filePaths });
+  });
+
+  // Settings
+  app.get("/api/settings", (req, res) => {
+    const settings = db.prepare("SELECT * FROM store_settings").all();
+    const settingsObj = settings.reduce((acc: any, s: any) => {
+      acc[s.key] = s.value;
+      return acc;
+    }, {});
+    res.json(settingsObj);
+  });
+
+  app.post("/api/settings", authenticateToken, authorizeRole(['admin']), (req, res) => {
+    const settings = req.body;
+    const upsert = db.prepare("INSERT OR REPLACE INTO store_settings (key, value) VALUES (?, ?)");
+    Object.entries(settings).forEach(([key, value]) => {
+      upsert.run(key, value as string);
+    });
+    res.json({ message: "Settings updated" });
+  });
+
+  // Wishlist
+  app.get("/api/wishlist", authenticateToken, (req: any, res) => {
+    const items = db.prepare(`
+      SELECT p.*, c.name as category_name FROM products p
+      JOIN wishlist w ON p.id = w.product_id
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE w.user_id = ?
+    `).all(req.user.id);
+    res.json(items);
+  });
+
+  app.post("/api/wishlist/add", authenticateToken, (req: any, res) => {
+    const { product_id } = req.body;
+    try {
+      db.prepare("INSERT INTO wishlist (user_id, product_id) VALUES (?, ?)").run(req.user.id, product_id);
+      res.status(201).json({ message: "Added to wishlist" });
+    } catch (e) {
+      res.status(400).json({ error: "Already in wishlist" });
+    }
+  });
+
+  app.delete("/api/wishlist/remove/:productId", authenticateToken, (req: any, res) => {
+    const { productId } = req.params;
+    db.prepare("DELETE FROM wishlist WHERE user_id = ? AND product_id = ?").run(req.user.id, productId);
+    res.json({ message: "Removed from wishlist" });
+  });
+
+  // Cart
+  app.get("/api/cart", authenticateToken, (req: any, res) => {
+    const items = db.prepare(`
+      SELECT p.*, c.name as category_name, cart.quantity, cart.id as cart_id
+      FROM products p
+      JOIN cart ON p.id = cart.product_id
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE cart.user_id = ?
+    `).all(req.user.id);
+    res.json(items);
+  });
+
+  app.post("/api/cart/add", authenticateToken, (req: any, res) => {
+    const { product_id, quantity = 1 } = req.body;
+    try {
+      const existing = db.prepare("SELECT * FROM cart WHERE user_id = ? AND product_id = ?").get(req.user.id, product_id) as any;
+      if (existing) {
+        db.prepare("UPDATE cart SET quantity = quantity + ? WHERE id = ?").run(quantity, existing.id);
+      } else {
+        db.prepare("INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)").run(req.user.id, product_id, quantity);
+      }
+      res.status(201).json({ message: "Added to cart" });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/cart/update", authenticateToken, (req: any, res) => {
+    const { product_id, quantity } = req.body;
+    db.prepare("UPDATE cart SET quantity = ? WHERE user_id = ? AND product_id = ?").run(quantity, req.user.id, product_id);
+    res.json({ message: "Cart updated" });
+  });
+
+  app.delete("/api/cart/remove/:productId", authenticateToken, (req: any, res) => {
+    const { productId } = req.params;
+    db.prepare("DELETE FROM cart WHERE user_id = ? AND product_id = ?").run(req.user.id, productId);
+    res.json({ message: "Removed from cart" });
+  });
+
   // Vite middleware for development
+  app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },

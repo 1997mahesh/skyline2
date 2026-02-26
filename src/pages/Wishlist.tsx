@@ -6,8 +6,16 @@ import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 
 const Wishlist = () => {
-  const { items, toggleWishlist } = useWishlist();
+  const { items, toggleWishlist, loading } = useWishlist();
   const { addToCart } = useCart();
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-24 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -27,20 +35,23 @@ const Wishlist = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="flex items-center justify-between mb-12">
-        <h1 className="text-4xl font-black uppercase tracking-tight">My Wishlist</h1>
+    <div className="space-y-12">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-black uppercase tracking-tight">My Wishlist</h1>
+          <p className="text-stone-500 text-sm uppercase tracking-widest font-bold">Items you've saved for later</p>
+        </div>
         <span className="text-stone-500 font-bold">{items.length} Items</span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-8">
         {items.map((product) => (
           <motion.div
             key={product.id}
             layout
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="glass-card group overflow-hidden flex flex-col"
+            className="bg-white/5 border border-white/10 rounded-2xl group overflow-hidden flex flex-col"
           >
             <div className="aspect-square relative overflow-hidden bg-stone-900">
               <img

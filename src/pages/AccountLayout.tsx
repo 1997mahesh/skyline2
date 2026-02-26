@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation, Outlet, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Package, Heart, MapPin, User, LogOut, ChevronRight, Settings } from 'lucide-react';
+import { Package, Heart, MapPin, User, LogOut, ChevronRight, Settings, ShoppingCart } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const AccountLayout = () => {
@@ -12,7 +12,8 @@ const AccountLayout = () => {
   const menuItems = [
     { icon: <User />, label: 'Profile Info', path: '/my-account' },
     { icon: <Package />, label: 'My Orders', path: '/my-account/orders' },
-    { icon: <Heart />, label: 'Wishlist', path: '/wishlist' },
+    { icon: <Heart />, label: 'My Wishlist', path: '/my-account/wishlist' },
+    { icon: <ShoppingCart />, label: 'My Cart', path: '/my-account/cart' },
     { icon: <MapPin />, label: 'Addresses', path: '/my-account/addresses' },
     { icon: <Settings />, label: 'Settings', path: '/my-account/settings' },
   ];

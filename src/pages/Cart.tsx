@@ -5,7 +5,15 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
 const Cart = () => {
-  const { items, removeFromCart, updateQuantity, total, clearCart } = useCart();
+  const { items, removeFromCart, updateQuantity, total, clearCart, loading } = useCart();
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-24 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -25,12 +33,15 @@ const Cart = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-4xl font-black uppercase tracking-tight mb-12">Shopping Cart</h1>
+    <div className="space-y-12">
+      <div>
+        <h1 className="text-3xl font-black uppercase tracking-tight">Shopping Cart</h1>
+        <p className="text-stone-500 text-sm uppercase tracking-widest font-bold">Review and manage your items</p>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-12">
         {/* Cart Items */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="xl:col-span-2 space-y-6">
           <AnimatePresence>
             {items.map((item) => (
               <motion.div
@@ -39,7 +50,7 @@ const Cart = () => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
-                className="glass-card p-4 sm:p-6 flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6"
+                className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6"
               >
                 <div className="w-24 h-24 rounded-xl overflow-hidden bg-stone-900 shrink-0">
                   <img
@@ -98,8 +109,8 @@ const Cart = () => {
         </div>
 
         {/* Summary */}
-        <div className="lg:col-span-1">
-          <div className="glass-card p-8 sticky top-32 space-y-6">
+        <div className="xl:col-span-1">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-8 sticky top-32 space-y-6">
             <h2 className="text-2xl font-black uppercase tracking-tight">Order Summary</h2>
             
             <div className="space-y-4 border-b border-white/5 pb-6">

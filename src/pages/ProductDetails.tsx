@@ -17,14 +17,21 @@ const ProductDetails = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    setLoading(true);
-    fetch(`/api/products/${slug}`)
-      .then(res => res.json())
-      .then(data => {
-        setProduct(data);
+    const fetchProduct = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/products/${slug}`);
+        if (res.ok) {
+          const data = await res.json();
+          setProduct(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch product details:', err);
+      } finally {
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      }
+    };
+    fetchProduct();
   }, [slug]);
 
   if (loading) {
@@ -150,19 +157,13 @@ const ProductDetails = () => {
 
             <div className="flex gap-4">
               <button 
-                onClick={() => {
-                  addToCart(product, quantity);
-                  navigate('/cart');
+                onClick={async () => {
+                  await addToCart(product, quantity);
+                  // Only navigate if user is logged in (addToCart handles the login redirect otherwise)
                 }}
                 className="flex-1 btn-primary py-5 uppercase tracking-widest font-black flex items-center justify-center space-x-3"
               >
                 <ShoppingCart className="w-5 h-5" />
-                <span>Buy Now</span>
-              </button>
-              <button 
-                onClick={() => addToCart(product, quantity)}
-                className="flex-1 btn-outline py-5 uppercase tracking-widest font-black flex items-center justify-center space-x-3"
-              >
                 <span>Add to Cart</span>
               </button>
             </div>

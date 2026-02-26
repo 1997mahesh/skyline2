@@ -20,9 +20,18 @@ const AdminDashboard = () => {
   const [stats, setStats] = React.useState<any>(null);
 
   React.useEffect(() => {
-    fetch('/api/admin/stats')
-    .then(res => res.json())
-    .then(data => setStats(data));
+    const fetchStats = async () => {
+      try {
+        const res = await fetch('/api/admin/stats');
+        if (res.ok) {
+          const data = await res.json();
+          setStats(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch admin stats:', err);
+      }
+    };
+    fetchStats();
   }, []);
 
   return (

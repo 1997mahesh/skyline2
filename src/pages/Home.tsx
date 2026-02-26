@@ -15,10 +15,27 @@ const Home = () => {
   const [activeTab, setActiveTab] = useState('featured');
 
   useEffect(() => {
-    fetch('/api/categories').then(res => res.json()).then(setCategories);
-    fetch('/api/products').then(res => res.json()).then(data => {
-      setFeaturedProducts(data.filter((p: Product) => p.is_featured || p.is_new));
-    });
+    const fetchData = async () => {
+      try {
+        const [catsRes, prodsRes] = await Promise.all([
+          fetch('/api/categories'),
+          fetch('/api/products')
+        ]);
+        
+        if (catsRes.ok) {
+          const cats = await catsRes.json();
+          setCategories(cats);
+        }
+        
+        if (prodsRes.ok) {
+          const prods = await prodsRes.json();
+          setFeaturedProducts(prods.filter((p: Product) => p.is_featured || p.is_new));
+        }
+      } catch (err) {
+        console.error('Failed to fetch home data:', err);
+      }
+    };
+    fetchData();
   }, []);
 
   return (

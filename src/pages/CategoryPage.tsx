@@ -11,21 +11,31 @@ const CategoryPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    // Fetch category details
-    fetch(`/api/categories`).then(res => res.json()).then(cats => {
-      const found = cats.find((c: Category) => c.slug === categorySlug);
-      setCategory(found);
-    });
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [catsRes, prodsRes] = await Promise.all([
+          fetch('/api/categories'),
+          fetch(`/api/products?category=${categorySlug}`)
+        ]);
 
-    // Fetch products for this category
-    fetch(`/api/products?category=${categorySlug}`)
-      .then(res => res.json())
-      .then(data => {
-        setProducts(data);
+        if (catsRes.ok) {
+          const cats = await catsRes.json();
+          const found = cats.find((c: Category) => c.slug === categorySlug);
+          setCategory(found);
+        }
+
+        if (prodsRes.ok) {
+          const data = await prodsRes.json();
+          setProducts(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch category data:', err);
+      } finally {
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      }
+    };
+    fetchData();
   }, [categorySlug]);
 
   if (loading) {

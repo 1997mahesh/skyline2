@@ -1,33 +1,81 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product } from '../types';
+import { useAuth } from './AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface WishlistContextType {
   items: Product[];
-  toggleWishlist: (product: Product) => void;
+  toggleWishlist: (product: Product) => Promise<void>;
   isInWishlist: (productId: number) => boolean;
   clearWishlist: () => void;
+  loading: boolean;
 }
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
 export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [items, setItems] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('skyline_wishlist');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [items, setItems] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { user, isLoading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  const fetchWishlist = async () => {
+    if (authLoading) return;
+    if (!user) {
+      setItems([]);
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/wishlist');
+      if (res.ok) {
+        const data = await res.json();
+        setItems(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch wishlist', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem('skyline_wishlist', JSON.stringify(items));
-  }, [items]);
+    fetchWishlist();
+  }, [user, authLoading]);
 
-  const toggleWishlist = (product: Product) => {
-    setItems(prev => {
-      const exists = prev.find(item => item.id === product.id);
+  const toggleWishlist = async (product: Product) => {
+    if (!user) {
+      toast.error('Please login to continue');
+      navigate('/login');
+      return;
+    }
+
+    const exists = items.some(item => item.id === product.id);
+
+    try {
       if (exists) {
-        return prev.filter(item => item.id !== product.id);
+        const res = await fetch(`/api/wishlist/remove/${product.id}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          toast.success('Removed from wishlist');
+          fetchWishlist();
+        }
+      } else {
+        const res = await fetch('/api/wishlist/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_id: product.id })
+        });
+        if (res.ok) {
+          toast.success('Added to wishlist');
+          fetchWishlist();
+        }
       }
-      return [...prev, product];
-    });
+    } catch (err) {
+      toast.error('Something went wrong');
+    }
   };
 
   const isInWishlist = (productId: number) => {
@@ -37,7 +85,7 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const clearWishlist = () => setItems([]);
 
   return (
-    <WishlistContext.Provider value={{ items, toggleWishlist, isInWishlist, clearWishlist }}>
+    <WishlistContext.Provider value={{ items, toggleWishlist, isInWishlist, clearWishlist, loading }}>
       {children}
     </WishlistContext.Provider>
   );
