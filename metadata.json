@@ -1,0 +1,7 @@
+{
+  "name": "Skyline Lights E-Commerce",
+  "description": "Premium LED & Decorative Lighting E-commerce platform with B2B dealer module and smart lighting tools.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
