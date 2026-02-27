@@ -15,37 +15,93 @@ const Home = () => {
   const [activeTab, setActiveTab] = useState('featured');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const slides = [
+    {
+      title: "Grand Chandelier",
+      subtitle: "Elegance that defines your space. Premium crystal designs.",
+      image: "https://picsum.photos/seed/chandelier/800/800",
+      slug: "chandeliers",
+      color: "from-amber-500/20"
+    },
+    {
+      title: "Modern Pendant",
+      subtitle: "Minimalist aesthetics for contemporary living. Sleek & stylish.",
+      image: "https://picsum.photos/seed/pendant/800/800",
+      slug: "pendant-lights",
+      color: "from-blue-500/20"
+    },
+    {
+      title: "Designer Wall Lamp",
+      subtitle: "Create the perfect ambiance with our curated wall collection.",
+      image: "https://picsum.photos/seed/wall-lamp/800/800",
+      slug: "wall-lights",
+      color: "from-emerald-500/20"
+    },
+    {
+      title: "Outdoor Step Light",
+      subtitle: "Safety meets style. Durable outdoor lighting solutions.",
+      image: "https://picsum.photos/seed/step-light/800/800",
+      slug: "step-lights",
+      color: "from-stone-500/20"
+    },
+    {
+      title: "Pro Track Light",
+      subtitle: "Focused illumination for galleries, shops, and modern homes.",
+      image: "https://picsum.photos/seed/track-light/800/800",
+      slug: "track-lights",
+      color: "from-purple-500/20"
+    }
+  ];
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
+    const fetchCategories = async () => {
       try {
-        const [catsRes, prodsRes] = await Promise.all([
-          fetch('/api/categories'),
-          fetch('/api/products')
-        ]);
-        
-        if (catsRes.ok) {
-          const cats = await catsRes.json();
+        const res = await fetch('/api/categories');
+        if (res.ok) {
+          const cats = await res.json();
           setCategories(cats);
         }
-        
-        if (prodsRes.ok) {
-          const prods = await prodsRes.json();
-          setFeaturedProducts(prods.filter((p: Product) => p.is_featured || p.is_new));
+      } catch (err) {
+        console.error('Failed to fetch categories:', err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        let url = '/api/products';
+        if (activeTab === 'featured') url += '?featured=true';
+        else if (activeTab === 'new') url += '?sort=new';
+        else if (activeTab === 'top-rated') url += '?sort=top-rated';
+
+        const res = await fetch(url);
+        if (res.ok) {
+          const prods = await res.json();
+          setFeaturedProducts(prods);
         }
       } catch (err) {
-        console.error('Failed to fetch home data:', err);
-        setError('Some data could not be loaded. Please try again later.');
+        console.error('Failed to fetch featured products:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
-  }, []);
+    fetchFeatured();
+  }, [activeTab]);
 
-  if (loading) {
+  useEffect(() => {
+    if (isPaused) return;
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [isPaused, slides.length]);
+
+  if (loading && categories.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -55,55 +111,100 @@ const Home = () => {
 
   return (
     <div className="space-y-24 pb-24">
-      {/* Hero Section */}
-      <section className="relative h-[90vh] flex items-center overflow-hidden">
+      {/* Hero Section - Auto Slider */}
+      <section 
+        className="relative h-[90vh] flex items-center overflow-hidden bg-bg-dark"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+      >
         <div className="absolute inset-0 z-0">
-          <img 
-            src="https://picsum.photos/seed/lighting-luxury/1920/1080?blur=2" 
-            className="w-full h-full object-cover opacity-30"
-            alt="Hero Background"
-            referrerPolicy="no-referrer"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-bg-dark/20 via-bg-dark to-bg-dark" />
+          <div className="absolute inset-0 bg-gradient-to-b from-bg-dark/40 via-bg-dark/80 to-bg-dark z-10" />
+          <motion.div
+            key={currentSlide}
+            initial={{ opacity: 0, scale: 1.1 }}
+            animate={{ opacity: 0.3, scale: 1 }}
+            transition={{ duration: 1.5 }}
+            className="w-full h-full"
+          >
+            <img 
+              src={slides[currentSlide].image} 
+              className="w-full h-full object-cover"
+              alt="Hero Background"
+              referrerPolicy="no-referrer"
+            />
+          </motion.div>
           
           {/* Animated Glow Orbs */}
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 blur-[120px] rounded-full animate-pulse" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full animate-pulse delay-1000" />
+          <div className={`absolute top-1/4 left-1/4 w-96 h-96 blur-[120px] rounded-full animate-pulse transition-colors duration-1000 bg-primary/20`} />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="max-w-3xl space-y-8"
-          >
-            <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-primary text-xs font-black tracking-[0.2em] uppercase">
-              <Zap className="w-4 h-4" />
-              <span>Pune's Premier Lighting Destination</span>
-            </div>
-            
-            <h1 className="text-7xl md:text-9xl font-black tracking-tighter leading-[0.85] uppercase">
-              Light <br />
-              <span className="text-primary glow-text">Beyond</span> <br />
-              Limits
-            </h1>
-            
-            <p className="text-xl text-stone-400 max-w-xl leading-relaxed">
-              Wholesale & Retail experts in LED, Decorative, and Industrial lighting. Transforming spaces with premium illumination since 2010.
-            </p>
-            
-            <div className="flex flex-wrap gap-6 pt-4">
-              <Link to="/shop" className="btn-primary py-4 px-10 text-sm uppercase tracking-widest font-black flex items-center space-x-3">
-                <span>Explore Shop</span>
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-              <Link to="/calculator" className="btn-outline py-4 px-10 text-sm uppercase tracking-widest font-black flex items-center space-x-3">
-                <Lightbulb className="w-5 h-5 text-primary" />
-                <span>Smart Calculator</span>
-              </Link>
-            </div>
-          </motion.div>
+        <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-12">
+            <motion.div
+              key={`content-${currentSlide}`}
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="space-y-8"
+            >
+              <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-primary text-xs font-black tracking-[0.2em] uppercase">
+                <Zap className="w-4 h-4" />
+                <span>Pune's Premier Lighting Destination</span>
+              </div>
+              
+              <h1 className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.9] uppercase">
+                {slides[currentSlide].title.split(' ')[0]} <br />
+                <span className="text-primary glow-text">{slides[currentSlide].title.split(' ').slice(1).join(' ')}</span>
+              </h1>
+              
+              <p className="text-xl text-stone-400 max-w-xl leading-relaxed">
+                {slides[currentSlide].subtitle}
+              </p>
+              
+              <div className="flex flex-wrap gap-6 pt-4">
+                <Link to={`/shop?category=${slides[currentSlide].slug}`} className="btn-primary py-4 px-10 text-sm uppercase tracking-widest font-black flex items-center space-x-3">
+                  <span>Shop Collection</span>
+                  <ArrowRight className="w-5 h-5" />
+                </Link>
+                <Link to="/calculator" className="btn-outline py-4 px-10 text-sm uppercase tracking-widest font-black flex items-center space-x-3">
+                  <Lightbulb className="w-5 h-5 text-primary" />
+                  <span>Smart Calculator</span>
+                </Link>
+              </div>
+            </motion.div>
+
+            <motion.div
+              key={`image-${currentSlide}`}
+              initial={{ opacity: 0, scale: 0.8, rotate: 5 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="hidden lg:block relative"
+            >
+              <div className="aspect-square rounded-3xl overflow-hidden border border-white/10 shadow-2xl relative group">
+                <img 
+                  src={slides[currentSlide].image} 
+                  alt={slides[currentSlide].title}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+              {/* Decorative elements */}
+              <div className="absolute -top-6 -right-6 w-24 h-24 bg-primary/20 blur-2xl rounded-full" />
+              <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-primary/10 blur-3xl rounded-full" />
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Navigation Dots */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-30 flex space-x-3">
+          {slides.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentSlide(idx)}
+              className={`h-1.5 transition-all duration-500 rounded-full ${currentSlide === idx ? 'w-12 bg-primary' : 'w-3 bg-white/20 hover:bg-white/40'}`}
+            />
+          ))}
         </div>
       </section>
 
@@ -124,8 +225,8 @@ const Home = () => {
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-          {categories.slice(0, 10).map((cat) => (
-            <CategoryCard key={cat.id} category={cat} />
+          {categories.slice(0, 10).map((cat: any) => (
+            <CategoryCard key={cat.id} category={cat} count={cat.product_count} />
           ))}
         </div>
       </section>

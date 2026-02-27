@@ -71,7 +71,9 @@ db.exec(`
     specifications TEXT, -- JSON object
     is_featured INTEGER DEFAULT 0,
     is_new INTEGER DEFAULT 0,
+    rating REAL DEFAULT 4.5,
     application TEXT, -- 'home', 'office', etc.
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES categories(id)
   );
 
@@ -190,18 +192,22 @@ try {
 
 try {
   const categoryCount = db.prepare("SELECT COUNT(*) as count FROM categories").get() as { count: number };
-  if (categoryCount.count === 0) {
-    const categories = [
-      { name: 'LED Bulbs', slug: 'led-bulbs', image: 'https://picsum.photos/seed/bulb/400/400' },
-      { name: 'Panel Lights', slug: 'panel-lights', image: 'https://picsum.photos/seed/panel/400/400' },
-      { name: 'COB Lights', slug: 'cob-lights', image: 'https://picsum.photos/seed/cob/400/400' },
-      { name: 'Wall Lights', slug: 'wall-lights', image: 'https://picsum.photos/seed/wall/400/400' },
-      { name: 'Hanging Lights', slug: 'hanging-lights', image: 'https://picsum.photos/seed/hanging/400/400' },
-      { name: 'Outdoor Lights', slug: 'outdoor-lights', image: 'https://picsum.photos/seed/outdoor/400/400' },
-      { name: 'Decorative Lights', slug: 'decorative-lights', image: 'https://picsum.photos/seed/decorative/400/400' },
-      { name: 'Street Lights', slug: 'street-lights', image: 'https://picsum.photos/seed/street/400/400' },
-      { name: 'Drivers & Accessories', slug: 'drivers-accessories', image: 'https://picsum.photos/seed/driver/400/400' },
-    ];
+    if (categoryCount.count === 0) {
+      const categories = [
+        { name: 'LED Bulbs', slug: 'led-bulbs', image: 'https://picsum.photos/seed/bulb/400/400' },
+        { name: 'Panel Lights', slug: 'panel-lights', image: 'https://picsum.photos/seed/panel/400/400' },
+        { name: 'COB Lights', slug: 'cob-lights', image: 'https://picsum.photos/seed/cob/400/400' },
+        { name: 'Wall Lights', slug: 'wall-lights', image: 'https://picsum.photos/seed/wall/400/400' },
+        { name: 'Hanging Lights', slug: 'hanging-lights', image: 'https://picsum.photos/seed/hanging/400/400' },
+        { name: 'Outdoor Lights', slug: 'outdoor-lights', image: 'https://picsum.photos/seed/outdoor/400/400' },
+        { name: 'Decorative Lights', slug: 'decorative-lights', image: 'https://picsum.photos/seed/decorative/400/400' },
+        { name: 'Street Lights', slug: 'street-lights', image: 'https://picsum.photos/seed/street/400/400' },
+        { name: 'Drivers & Accessories', slug: 'drivers-accessories', image: 'https://picsum.photos/seed/driver/400/400' },
+        { name: 'Chandeliers', slug: 'chandeliers', image: 'https://picsum.photos/seed/chandeliers/400/400' },
+        { name: 'Pendant Lights', slug: 'pendant-lights', image: 'https://picsum.photos/seed/pendant/400/400' },
+        { name: 'Step Lights', slug: 'step-lights', image: 'https://picsum.photos/seed/step/400/400' },
+        { name: 'Track Lights', slug: 'track-lights', image: 'https://picsum.photos/seed/track/400/400' },
+      ];
     const insertCat = db.prepare("INSERT INTO categories (name, slug, image) VALUES (?, ?, ?)");
     categories.forEach(c => insertCat.run(c.name, c.slug, c.image));
   }
@@ -368,12 +374,43 @@ async function startServer() {
   });
 
   app.get("/api/products", (req, res) => {
-    const products = db.prepare("SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id").all();
+    const { category, featured, sort } = req.query;
+    let query = "SELECT p.*, c.name as category_name, c.slug as category_slug FROM products p LEFT JOIN categories c ON p.category_id = c.id";
+    const params: any[] = [];
+    const conditions: string[] = [];
+
+    if (category) {
+      conditions.push("c.slug = ?");
+      params.push(category);
+    }
+
+    if (featured === 'true') {
+      conditions.push("p.is_featured = 1");
+    }
+
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
+    }
+
+    if (sort === 'new') {
+      query += " ORDER BY p.created_at DESC";
+    } else if (sort === 'top-rated') {
+      query += " ORDER BY p.rating DESC";
+    } else {
+      query += " ORDER BY p.id DESC";
+    }
+
+    const products = db.prepare(query).all(...params);
     res.json(products);
   });
 
   app.get("/api/categories", (req, res) => {
-    const categories = db.prepare("SELECT * FROM categories").all();
+    const categories = db.prepare(`
+      SELECT c.*, COUNT(p.id) as product_count 
+      FROM categories c 
+      LEFT JOIN products p ON c.id = p.category_id 
+      GROUP BY c.id
+    `).all();
     res.json(categories);
   });
 
