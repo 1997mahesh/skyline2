@@ -13,9 +13,13 @@ const Home = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [activeTab, setActiveTab] = useState('featured');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
+      setError(null);
       try {
         const [catsRes, prodsRes] = await Promise.all([
           fetch('/api/categories'),
@@ -33,10 +37,21 @@ const Home = () => {
         }
       } catch (err) {
         console.error('Failed to fetch home data:', err);
+        setError('Some data could not be loaded. Please try again later.');
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-24 pb-24">
@@ -138,6 +153,11 @@ const Home = () => {
 
       {/* Featured Products Tabs */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {error && (
+          <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm font-bold uppercase tracking-widest text-center">
+            {error}
+          </div>
+        )}
         <div className="flex flex-col items-center mb-12">
           <h2 className="text-4xl font-black tracking-tight uppercase mb-8">Featured Collection</h2>
           <div className="flex space-x-4 bg-white/5 p-1 rounded-full border border-white/10">

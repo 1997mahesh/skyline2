@@ -153,85 +153,113 @@ db.exec(`
   }
 
 // Seed Data if empty
-const userCount = db.prepare("SELECT COUNT(*) as count FROM users").get() as { count: number };
-if (userCount.count === 0) {
-  const adminPassword = bcrypt.hashSync("admin123", 10);
-  db.prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)").run(
-    "Admin", "admin@skylinelights.com", adminPassword, "admin"
-  );
+try {
+  const userCount = db.prepare("SELECT COUNT(*) as count FROM users").get() as { count: number };
+  if (userCount.count === 0) {
+    const adminPassword = bcrypt.hashSync("admin123", 10);
+    db.prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)").run(
+      "Admin", "admin@skylinelights.com", adminPassword, "admin"
+    );
 
-  const userPassword = bcrypt.hashSync("123456", 10);
-  db.prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)").run(
-    "Demo User", "user@skylinelights.com", userPassword, "customer"
-  );
-}
-
-const settingsCount = db.prepare("SELECT COUNT(*) as count FROM store_settings").get() as { count: number };
-if (settingsCount.count === 0) {
-  const settings = [
-    { key: 'store_name', value: 'Skyline Lights' },
-    { key: 'logo', value: '/logo.png' },
-    { key: 'contact_email', value: 'contact@skylinelights.com' },
-    { key: 'contact_phone', value: '+91 9226645159' },
-    { key: 'gst_number', value: '27AAACG1234A1Z5' },
-    { key: 'address', value: '123, Light Street, Mumbai, Maharashtra' }
-  ];
-  const insertSetting = db.prepare("INSERT INTO store_settings (key, value) VALUES (?, ?)");
-  settings.forEach(s => insertSetting.run(s.key, s.value));
-}
-
-const categoryCount = db.prepare("SELECT COUNT(*) as count FROM categories").get() as { count: number };
-if (categoryCount.count === 0) {
-  const categories = [
-    { name: 'LED Bulbs', slug: 'led-bulbs', image: 'https://picsum.photos/seed/bulb/400/400' },
-    { name: 'Panel Lights', slug: 'panel-lights', image: 'https://picsum.photos/seed/panel/400/400' },
-    { name: 'COB Lights', slug: 'cob-lights', image: 'https://picsum.photos/seed/cob/400/400' },
-    { name: 'Wall Lights', slug: 'wall-lights', image: 'https://picsum.photos/seed/wall/400/400' },
-    { name: 'Hanging Lights', slug: 'hanging-lights', image: 'https://picsum.photos/seed/hanging/400/400' },
-    { name: 'Outdoor Lights', slug: 'outdoor-lights', image: 'https://picsum.photos/seed/outdoor/400/400' },
-    { name: 'Decorative Lights', slug: 'decorative-lights', image: 'https://picsum.photos/seed/decorative/400/400' },
-    { name: 'Street Lights', slug: 'street-lights', image: 'https://picsum.photos/seed/street/400/400' },
-    { name: 'Drivers & Accessories', slug: 'drivers-accessories', image: 'https://picsum.photos/seed/driver/400/400' },
-  ];
-  const insertCat = db.prepare("INSERT INTO categories (name, slug, image) VALUES (?, ?, ?)");
-  categories.forEach(c => insertCat.run(c.name, c.slug, c.image));
-}
-
-const productCount = db.prepare("SELECT COUNT(*) as count FROM products").get() as { count: number };
-if (productCount.count === 0) {
-  const products = [
-    { category_id: 1, name: '9W LED Bulb', slug: '9w-led-bulb', price: 99, stock: 100, application: 'home', is_featured: 1, is_new: 0, images: JSON.stringify(['https://picsum.photos/seed/bulb1/400/400']) },
-    { category_id: 1, name: '12W LED Bulb', slug: '12w-led-bulb', price: 149, stock: 50, application: 'home', is_featured: 0, is_new: 1, images: JSON.stringify(['https://picsum.photos/seed/bulb2/400/400']) },
-    { category_id: 2, name: '15W Slim Panel', slug: '15w-slim-panel', price: 499, stock: 30, application: 'office', is_featured: 1, is_new: 0, images: JSON.stringify(['https://picsum.photos/seed/panel1/400/400']) },
-    { category_id: 3, name: '7W COB Focus', slug: '7w-cob-focus', price: 350, stock: 20, application: 'shop', is_featured: 0, is_new: 1, images: JSON.stringify(['https://picsum.photos/seed/cob1/400/400']) },
-    { category_id: 4, name: 'Modern Wall Sconce', slug: 'modern-wall-sconce', price: 1200, stock: 15, application: 'hotel', is_featured: 1, is_new: 0, images: JSON.stringify(['https://picsum.photos/seed/wall1/400/400']) },
-    { category_id: 5, name: 'Vintage Edison Chandelier', slug: 'vintage-edison-chandelier', price: 4500, stock: 5, application: 'decorative', is_featured: 0, is_new: 1, images: JSON.stringify(['https://picsum.photos/seed/hanging1/400/400']) },
-    { category_id: 6, name: '50W LED Flood Light', slug: '50w-led-flood-light', price: 1800, stock: 25, application: 'outdoor', is_featured: 1, is_new: 0, images: JSON.stringify(['https://picsum.photos/seed/flood1/400/400']) },
-    { category_id: 8, name: '100W Street Light', slug: '100w-street-light', price: 3200, stock: 10, application: 'warehouse', is_featured: 0, is_new: 1, images: JSON.stringify(['https://picsum.photos/seed/street1/400/400']) },
-  ];
-  const insertProd = db.prepare("INSERT INTO products (category_id, name, slug, price, stock, application, is_featured, is_new, images) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-  products.forEach(p => insertProd.run(p.category_id, p.name, p.slug, p.price, p.stock, p.application, p.is_featured, p.is_new, p.images));
-}
-
-const orderCount = db.prepare("SELECT COUNT(*) as count FROM orders").get() as { count: number };
-if (orderCount.count === 0) {
-  const demoUser = db.prepare("SELECT id FROM users WHERE email = 'user@skylinelights.com'").get() as { id: number };
-  if (demoUser) {
-    const orderResult = db.prepare(`
-      INSERT INTO orders (user_id, total_amount, status, payment_method, shipping_address)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(demoUser.id, 1048, 'delivered', 'COD', 'Demo User\n123, Light Street\nMumbai, Maharashtra - 400001');
-    
-    const orderId = orderResult.lastInsertRowid;
-    db.prepare(`
-      INSERT INTO order_items (order_id, product_id, quantity, price)
-      VALUES (?, ?, ?, ?)
-    `).run(orderId, 1, 2, 149);
-    db.prepare(`
-      INSERT INTO order_items (order_id, product_id, quantity, price)
-      VALUES (?, ?, ?, ?)
-    `).run(orderId, 3, 1, 449);
+    const userPassword = bcrypt.hashSync("123456", 10);
+    db.prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)").run(
+      "Demo User", "user@skylinelights.com", userPassword, "customer"
+    );
   }
+} catch (err) {
+  console.error("Failed to seed users:", err);
+}
+
+try {
+  const settingsCount = db.prepare("SELECT COUNT(*) as count FROM store_settings").get() as { count: number };
+  if (settingsCount.count === 0) {
+    const settings = [
+      { key: 'store_name', value: 'Skyline Lights' },
+      { key: 'logo', value: '/logo.png' },
+      { key: 'contact_email', value: 'contact@skylinelights.com' },
+      { key: 'contact_phone', value: '+91 9226645159' },
+      { key: 'gst_number', value: '27AAACG1234A1Z5' },
+      { key: 'address', value: '123, Light Street, Mumbai, Maharashtra' }
+    ];
+    const insertSetting = db.prepare("INSERT INTO store_settings (key, value) VALUES (?, ?)");
+    settings.forEach(s => insertSetting.run(s.key, s.value));
+  }
+} catch (err) {
+  console.error("Failed to seed settings:", err);
+}
+
+try {
+  const categoryCount = db.prepare("SELECT COUNT(*) as count FROM categories").get() as { count: number };
+  if (categoryCount.count === 0) {
+    const categories = [
+      { name: 'LED Bulbs', slug: 'led-bulbs', image: 'https://picsum.photos/seed/bulb/400/400' },
+      { name: 'Panel Lights', slug: 'panel-lights', image: 'https://picsum.photos/seed/panel/400/400' },
+      { name: 'COB Lights', slug: 'cob-lights', image: 'https://picsum.photos/seed/cob/400/400' },
+      { name: 'Wall Lights', slug: 'wall-lights', image: 'https://picsum.photos/seed/wall/400/400' },
+      { name: 'Hanging Lights', slug: 'hanging-lights', image: 'https://picsum.photos/seed/hanging/400/400' },
+      { name: 'Outdoor Lights', slug: 'outdoor-lights', image: 'https://picsum.photos/seed/outdoor/400/400' },
+      { name: 'Decorative Lights', slug: 'decorative-lights', image: 'https://picsum.photos/seed/decorative/400/400' },
+      { name: 'Street Lights', slug: 'street-lights', image: 'https://picsum.photos/seed/street/400/400' },
+      { name: 'Drivers & Accessories', slug: 'drivers-accessories', image: 'https://picsum.photos/seed/driver/400/400' },
+    ];
+    const insertCat = db.prepare("INSERT INTO categories (name, slug, image) VALUES (?, ?, ?)");
+    categories.forEach(c => insertCat.run(c.name, c.slug, c.image));
+  }
+} catch (err) {
+  console.error("Failed to seed categories:", err);
+}
+
+try {
+  const productCount = db.prepare("SELECT COUNT(*) as count FROM products").get() as { count: number };
+  if (productCount.count === 0) {
+    const products = [
+      { category_id: 1, name: '9W LED Bulb', slug: '9w-led-bulb', price: 99, stock: 100, application: 'home', is_featured: 1, is_new: 0, images: JSON.stringify(['https://picsum.photos/seed/bulb1/400/400']) },
+      { category_id: 1, name: '12W LED Bulb', slug: '12w-led-bulb', price: 149, stock: 50, application: 'home', is_featured: 0, is_new: 1, images: JSON.stringify(['https://picsum.photos/seed/bulb2/400/400']) },
+      { category_id: 2, name: '15W Slim Panel', slug: '15w-slim-panel', price: 499, stock: 30, application: 'office', is_featured: 1, is_new: 0, images: JSON.stringify(['https://picsum.photos/seed/panel1/400/400']) },
+      { category_id: 3, name: '7W COB Focus', slug: '7w-cob-focus', price: 350, stock: 20, application: 'shop', is_featured: 0, is_new: 1, images: JSON.stringify(['https://picsum.photos/seed/cob1/400/400']) },
+      { category_id: 4, name: 'Modern Wall Sconce', slug: 'modern-wall-sconce', price: 1200, stock: 15, application: 'hotel', is_featured: 1, is_new: 0, images: JSON.stringify(['https://picsum.photos/seed/wall1/400/400']) },
+      { category_id: 5, name: 'Vintage Edison Chandelier', slug: 'vintage-edison-chandelier', price: 4500, stock: 5, application: 'decorative', is_featured: 0, is_new: 1, images: JSON.stringify(['https://picsum.photos/seed/hanging1/400/400']) },
+      { category_id: 6, name: '50W LED Flood Light', slug: '50w-led-flood-light', price: 1800, stock: 25, application: 'outdoor', is_featured: 1, is_new: 0, images: JSON.stringify(['https://picsum.photos/seed/flood1/400/400']) },
+      { category_id: 8, name: '100W Street Light', slug: '100w-street-light', price: 3200, stock: 10, application: 'warehouse', is_featured: 0, is_new: 1, images: JSON.stringify(['https://picsum.photos/seed/street1/400/400']) },
+    ];
+    const insertProd = db.prepare("INSERT INTO products (category_id, name, slug, price, stock, application, is_featured, is_new, images) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    products.forEach(p => insertProd.run(p.category_id, p.name, p.slug, p.price, p.stock, p.application, p.is_featured, p.is_new, p.images));
+  }
+} catch (err) {
+  console.error("Failed to seed products:", err);
+}
+
+try {
+  const orderCount = db.prepare("SELECT COUNT(*) as count FROM orders").get() as { count: number };
+  if (orderCount.count === 0) {
+    const demoUser = db.prepare("SELECT id FROM users WHERE email = 'user@skylinelights.com'").get() as { id: number };
+    if (demoUser) {
+      // Create a default address for demo user
+      const addressResult = db.prepare(`
+        INSERT INTO addresses (user_id, name, phone, address_line1, city, state, pincode, is_default)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(demoUser.id, 'Demo User', '9876543210', '123, Light Street', 'Mumbai', 'Maharashtra', '400001', 1);
+      
+      const addressId = addressResult.lastInsertRowid;
+
+      const orderResult = db.prepare(`
+        INSERT INTO orders (user_id, total_amount, status, payment_method, address_id)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(demoUser.id, 1048, 'delivered', 'COD', addressId);
+      
+      const orderId = orderResult.lastInsertRowid;
+      db.prepare(`
+        INSERT INTO order_items (order_id, product_id, quantity, price)
+        VALUES (?, ?, ?, ?)
+      `).run(orderId, 1, 2, 149);
+      db.prepare(`
+        INSERT INTO order_items (order_id, product_id, quantity, price)
+        VALUES (?, ?, ?, ?)
+      `).run(orderId, 3, 1, 449);
+    }
+  }
+} catch (err) {
+  console.error("Failed to seed orders:", err);
 }
 
 async function startServer() {
