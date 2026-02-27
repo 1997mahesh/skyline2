@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Zap, Mail, Lock, User } from 'lucide-react';
 import { toast } from 'sonner';
+import PasswordInput from '../components/PasswordInput';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -54,31 +55,24 @@ const Login = () => {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-stone-400">Email Address</label>
+            <label className="text-sm font-bold text-stone-400 uppercase tracking-widest">Email Address</label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
               <input 
                 {...register('email')}
-                className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 focus:border-primary outline-none transition-all"
+                className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 focus:border-primary outline-none transition-all"
                 placeholder="name@example.com"
               />
             </div>
-            {errors.email && <p className="text-xs text-red-400">{errors.email.message as string}</p>}
+            {errors.email && <p className="text-xs text-red-400 font-bold uppercase tracking-widest">{errors.email.message as string}</p>}
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-stone-400">Password</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
-              <input 
-                type="password"
-                {...register('password')}
-                className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 focus:border-primary outline-none transition-all"
-                placeholder="••••••••"
-              />
-            </div>
-            {errors.password && <p className="text-xs text-red-400">{errors.password.message as string}</p>}
-          </div>
+          <PasswordInput
+            label="Password"
+            placeholder="••••••••"
+            error={errors.password?.message as string}
+            {...register('password')}
+          />
 
           <button 
             disabled={isSubmitting}

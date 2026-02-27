@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingCart, Heart, Share2, Shield, Truck, Clock, Star, Plus, Minus, ArrowRight, ChevronRight } from 'lucide-react';
+import { ShoppingCart, Heart, Share2, Shield, Truck, Clock, Star, Plus, Minus, ArrowRight, ChevronRight, Loader2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { Product } from '../types';
+import ProductCard from '../components/ProductCard';
 
 const ProductDetails = () => {
   const { slug } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingRelated, setLoadingRelated] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const { addToCart } = useCart();
@@ -24,6 +27,7 @@ const ProductDetails = () => {
         if (res.ok) {
           const data = await res.json();
           setProduct(data);
+          fetchRelated(data.category_slug, data.id);
         }
       } catch (err) {
         console.error('Failed to fetch product details:', err);
@@ -33,6 +37,21 @@ const ProductDetails = () => {
     };
     fetchProduct();
   }, [slug]);
+
+  const fetchRelated = async (categorySlug: string, currentProductId: number) => {
+    setLoadingRelated(true);
+    try {
+      const res = await fetch(`/api/products?category=${categorySlug}`);
+      if (res.ok) {
+        const data = await res.json();
+        setRelatedProducts(data.filter((p: Product) => p.id !== currentProductId).slice(0, 4));
+      }
+    } catch (err) {
+      console.error('Failed to fetch related products:', err);
+    } finally {
+      setLoadingRelated(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -187,6 +206,36 @@ const ProductDetails = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Related Products */}
+      <div className="mt-32 pt-24 border-t border-white/5">
+        <div className="flex justify-between items-end mb-12">
+          <div>
+            <h2 className="text-4xl font-black uppercase tracking-tight">Related Products</h2>
+            <p className="text-stone-500 mt-2">You might also like these products from the same category</p>
+          </div>
+          <Link to="/shop" className="text-primary font-bold flex items-center space-x-2 hover:underline">
+            <span>View All</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {loadingRelated ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="glass-card h-80 animate-pulse" />
+            ))}
+          </div>
+        ) : relatedProducts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {relatedProducts.map(prod => (
+              <ProductCard key={prod.id} product={prod} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-stone-500 text-center py-12 font-bold uppercase tracking-widest">No related products found</p>
+        )}
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { Product, Category } from '../types';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { Link, useSearchParams } from 'react-router-dom';
+import ProductCard from '../components/ProductCard';
 
 const Shop = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -137,56 +138,7 @@ const Shop = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {products.map((product) => (
-                <motion.div
-                  key={product.id}
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="glass-card group overflow-hidden"
-                >
-                  <div className="relative aspect-square overflow-hidden bg-stone-900">
-                    <img 
-                      src={JSON.parse(product.images as any)[0] || 'https://picsum.photos/seed/light/400/400'} 
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-4">
-                      <button 
-                        onClick={() => addToCart(product)}
-                        className="p-3 bg-primary text-black rounded-full hover:scale-110 transition-transform"
-                        title="Add to Cart"
-                      >
-                        <ShoppingCart className="w-5 h-5" />
-                      </button>
-                      <Link 
-                        to={`/shop/${product.slug}`}
-                        className="p-3 bg-white text-black rounded-full hover:scale-110 transition-transform"
-                        title="View Details"
-                      >
-                        <Eye className="w-5 h-5" />
-                      </Link>
-                      <button 
-                        onClick={() => toggleWishlist(product)}
-                        className={`p-3 rounded-full hover:scale-110 transition-transform ${isInWishlist(product.id) ? 'bg-red-500 text-white' : 'bg-white text-black'}`}
-                        title="Add to Wishlist"
-                      >
-                        <Heart className={`w-5 h-5 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
-                      </button>
-                    </div>
-                    {product.is_new && (
-                      <span className="absolute top-4 left-4 bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded">NEW</span>
-                    )}
-                  </div>
-                  <div className="p-5">
-                    <p className="text-[10px] text-primary font-bold uppercase tracking-widest mb-1">{product.category_name}</p>
-                    <h3 className="font-bold text-lg mb-2 line-clamp-1">{product.name}</h3>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xl font-black">₹{product.price}</span>
-                      <span className="text-xs text-stone-500">{product.stock > 0 ? 'In Stock' : 'Out of Stock'}</span>
-                    </div>
-                  </div>
-                </motion.div>
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
           )}

@@ -4,6 +4,7 @@ import { ArrowRight, Zap, Shield, Truck, Clock, Lightbulb, Star } from 'lucide-r
 import { Link } from 'react-router-dom';
 import TrustBar from '../components/TrustBar';
 import CategoryCard from '../components/CategoryCard';
+import ProductCard from '../components/ProductCard';
 import ApplicationCard from '../components/ApplicationCard';
 import ProjectGallery from '../components/ProjectGallery';
 import Testimonials from '../components/Testimonials';
@@ -276,35 +277,7 @@ const Home = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {featuredProducts.slice(0, 8).map((product) => (
-            <motion.div
-              key={product.id}
-              layout
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="glass-card group overflow-hidden"
-            >
-              <div className="aspect-square relative overflow-hidden bg-stone-900">
-                <img 
-                  src={JSON.parse(product.images as any)[0]} 
-                  alt={product.name} 
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Link to={`/product/${product.slug}`} className="btn-primary py-2 px-6 text-[10px] font-black uppercase tracking-widest">View Details</Link>
-                </div>
-              </div>
-              <div className="p-6">
-                <h3 className="font-bold mb-2 truncate">{product.name}</h3>
-                <div className="flex justify-between items-center">
-                  <span className="text-xl font-black text-primary">₹{product.price}</span>
-                  <div className="flex items-center text-stone-500 text-xs">
-                    <Star className="w-3 h-3 text-primary fill-primary mr-1" />
-                    <span>4.8</span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+            <ProductCard key={product.id} product={product} />
           ))}
         </div>
       </section>

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Lock, Mail, ArrowRight, ShieldAlert } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
+import PasswordInput from '../components/PasswordInput';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
@@ -80,20 +81,13 @@ const AdminLogin = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-stone-500 ml-1">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-600" />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 outline-none focus:border-primary transition-colors text-white"
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
+            <PasswordInput
+              label="Password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+            />
 
             <button
               type="submit"

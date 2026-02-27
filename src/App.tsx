@@ -23,6 +23,7 @@ import AccountSettings from './pages/account/AccountSettings';
 import LightingCalculator from './pages/LightingCalculator';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminProducts from './pages/admin/AdminProducts';
+import AdminGallery from './pages/admin/AdminGallery';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminCustomers from './pages/admin/AdminCustomers';
 import AdminAnalytics from './pages/admin/AdminAnalytics';
@@ -50,6 +51,7 @@ export default function App() {
               }>
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="products" element={<AdminProducts />} />
+                <Route path="gallery" element={<AdminGallery />} />
                 <Route path="orders" element={<AdminOrders />} />
                 <Route path="customers" element={<AdminCustomers />} />
                 <Route path="analytics" element={<AdminAnalytics />} />
@@ -61,7 +63,7 @@ export default function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/shop" element={<Shop />} />
-                <Route path="/shop/:slug" element={<ProductDetails />} />
+                <Route path="/product/:slug" element={<ProductDetails />} />
                 <Route path="/categories/:category" element={<CategoryPage />} />
                 <Route path="/gallery" element={<Gallery />} />
                 <Route path="/contact" element={<Contact />} />

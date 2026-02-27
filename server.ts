@@ -140,6 +140,13 @@ db.exec(`
     FOREIGN KEY (product_id) REFERENCES products(id),
     UNIQUE(user_id, product_id)
   );
+
+  CREATE TABLE IF NOT EXISTS gallery (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    image_url TEXT NOT NULL,
+    title TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
   // Migration: Add address_id to orders if it doesn't exist
@@ -327,7 +334,12 @@ async function startServer() {
 
   app.get("/api/products/:slug", (req, res) => {
     const { slug } = req.params;
-    const product = db.prepare("SELECT * FROM products WHERE slug = ?").get(slug);
+    const product = db.prepare(`
+      SELECT p.*, c.slug as category_slug 
+      FROM products p 
+      LEFT JOIN categories c ON p.category_id = c.id 
+      WHERE p.slug = ?
+    `).get(slug);
     if (!product) return res.status(404).json({ error: "Product not found" });
     res.json(product);
   });
@@ -724,6 +736,49 @@ async function startServer() {
     const { productId } = req.params;
     db.prepare("DELETE FROM cart WHERE user_id = ? AND product_id = ?").run(req.user.id, productId);
     res.json({ message: "Removed from cart" });
+  });
+
+  // Gallery APIs
+  app.get("/api/gallery", (req, res) => {
+    const images = db.prepare("SELECT * FROM gallery ORDER BY created_at DESC").all();
+    res.json(images);
+  });
+
+  app.get("/api/admin/gallery", authenticateToken, authorizeRole(['admin']), (req, res) => {
+    const images = db.prepare("SELECT * FROM gallery ORDER BY created_at DESC").all();
+    res.json(images);
+  });
+
+  app.post("/api/admin/gallery", authenticateToken, authorizeRole(['admin']), (req, res) => {
+    const { image_url, title } = req.body;
+    try {
+      const result = db.prepare("INSERT INTO gallery (image_url, title) VALUES (?, ?)").run(image_url, title);
+      res.status(201).json({ id: result.lastInsertRowid });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/admin/gallery/:id", authenticateToken, authorizeRole(['admin']), (req, res) => {
+    const { id } = req.params;
+    const { image_url, title } = req.body;
+    try {
+      db.prepare("UPDATE gallery SET image_url = ?, title = ? WHERE id = ?").run(image_url, title, id);
+      res.json({ message: "Gallery image updated" });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.delete("/api/admin/gallery/:id", authenticateToken, authorizeRole(['admin']), (req, res) => {
+    const { id } = req.params;
+    db.prepare("DELETE FROM gallery WHERE id = ?").run(id);
+    res.json({ message: "Gallery image deleted" });
+  });
+
+  app.post("/api/admin/gallery/upload", authenticateToken, authorizeRole(['admin']), upload.single("image"), (req: any, res) => {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    res.json({ imageUrl: `/uploads/products/${req.file.filename}` });
   });
 
   // Vite middleware for development
